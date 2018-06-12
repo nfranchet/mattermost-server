@@ -187,7 +187,7 @@ func (a *App) SendNotifications(post *model.Post, team *model.Team, channel *mod
 		channelName = channel.DisplayName
 	}
 
-	if a.Config().EmailSettings.SendEmailNotifications {
+	if *a.Config().EmailSettings.SendEmailNotifications {
 		for _, id := range mentionedUsersList {
 			if profileMap[id] == nil {
 				continue
@@ -209,7 +209,7 @@ func (a *App) SendNotifications(post *model.Post, team *model.Team, channel *mod
 			}
 
 			//If email verification is required and user email is not verified don't send email.
-			if a.Config().EmailSettings.RequireEmailVerification && !profileMap[id].EmailVerified {
+			if *a.Config().EmailSettings.RequireEmailVerification && !profileMap[id].EmailVerified {
 				mlog.Error(fmt.Sprintf("Skipped sending notification email to %v, address not verified. [details: user_id=%v]", profileMap[id].Email, id))
 				continue
 			}
@@ -408,7 +408,7 @@ func (a *App) sendNotificationEmail(post *model.Post, user *model.User, channel 
 				team = teams[0]
 			} else {
 				// in case the user hasn't joined any teams we send them to the select_team page
-				team = &model.Team{Name: "select_team", DisplayName: a.Config().TeamSettings.SiteName}
+				team = &model.Team{Name: "select_team", DisplayName: *a.Config().TeamSettings.SiteName}
 			}
 		}
 	}
@@ -440,13 +440,13 @@ func (a *App) sendNotificationEmail(post *model.Post, user *model.User, channel 
 
 	var subjectText string
 	if channel.Type == model.CHANNEL_DIRECT {
-		subjectText = getDirectMessageNotificationEmailSubject(post, translateFunc, a.Config().TeamSettings.SiteName, senderName)
+		subjectText = getDirectMessageNotificationEmailSubject(post, translateFunc, *a.Config().TeamSettings.SiteName, senderName)
 	} else if channel.Type == model.CHANNEL_GROUP {
-		subjectText = getGroupMessageNotificationEmailSubject(post, translateFunc, a.Config().TeamSettings.SiteName, channelName, emailNotificationContentsType)
+		subjectText = getGroupMessageNotificationEmailSubject(post, translateFunc, *a.Config().TeamSettings.SiteName, channelName, emailNotificationContentsType)
 	} else if *a.Config().EmailSettings.UseChannelInEmailNotifications {
-		subjectText = getNotificationEmailSubject(post, translateFunc, a.Config().TeamSettings.SiteName, team.DisplayName+" ("+channel.DisplayName+")")
+		subjectText = getNotificationEmailSubject(post, translateFunc, *a.Config().TeamSettings.SiteName, team.DisplayName+" ("+channel.DisplayName+")")
 	} else {
-		subjectText = getNotificationEmailSubject(post, translateFunc, a.Config().TeamSettings.SiteName, team.DisplayName)
+		subjectText = getNotificationEmailSubject(post, translateFunc, *a.Config().TeamSettings.SiteName, team.DisplayName)
 	}
 
 	teamURL := a.GetSiteURL() + "/" + team.Name
