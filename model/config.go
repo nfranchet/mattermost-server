@@ -838,7 +838,7 @@ func (s *FileSettings) SetDefaults() {
 		s.AmazonS3Region = NewString("")
 	}
 
-	if s.AmazonS3Endpoint == nil || len(*s.AmazonS3Endpoint) == 0{
+	if s.AmazonS3Endpoint == nil || len(*s.AmazonS3Endpoint) == 0 {
 		// Defaults to "s3.amazonaws.com"
 		s.AmazonS3Endpoint = NewString("s3.amazonaws.com")
 	}
