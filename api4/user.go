@@ -278,6 +278,31 @@ func setProfileImage(c *Context, w http.ResponseWriter, r *http.Request) {
 	ReturnStatusOK(w)
 }
 
+func restrictUserInUserTeams(c *Context, profiles []*model.User) []*model.User {
+	if c.IsSystemAdmin() {
+		return profiles
+	}
+	userIds := make(map[string]bool)
+	for _, team := range c.Session.TeamMembers {
+		profiles2, _ := c.App.GetUsersInTeam(team.TeamId, 0, 350000)
+		for _, user := range profiles2 {
+			if _, ok := userIds[user.Id]; !ok { // append only if not known
+				userIds[user.Id] = true
+			}
+		}
+	}
+
+	var profilesReturned []*model.User
+	for _, userss := range profiles {
+		if _, ok := userIds[userss.Id]; ok {
+			// We keep users
+			profilesReturned = append(profilesReturned, userss)
+		}
+	}
+	return profilesReturned
+
+}
+
 func getUsers(c *Context, w http.ResponseWriter, r *http.Request) {
 	inTeamId := r.URL.Query().Get("in_team")
 	notInTeamId := r.URL.Query().Get("not_in_team")
@@ -326,11 +351,12 @@ func getUsers(c *Context, w http.ResponseWriter, r *http.Request) {
 			c.SetPermissionError(model.PERMISSION_VIEW_TEAM)
 			return
 		}
-
+		/*
 		etag = c.App.GetUsersNotInTeamEtag(inTeamId)
 		if c.HandleEtag(etag, "Get Users Not in Team", w, r) {
 			return
 		}
+		*/
 
 		profiles, err = c.App.GetUsersNotInTeamPage(notInTeamId, c.Params.Page, c.Params.PerPage, c.IsSystemAdmin())
 	} else if len(inTeamId) > 0 {
@@ -344,11 +370,11 @@ func getUsers(c *Context, w http.ResponseWriter, r *http.Request) {
 		} else if sort == "create_at" {
 			profiles, err = c.App.GetNewUsersForTeamPage(inTeamId, c.Params.Page, c.Params.PerPage, c.IsSystemAdmin())
 		} else {
+			/*
 			etag = c.App.GetUsersInTeamEtag(inTeamId)
 			if c.HandleEtag(etag, "Get Users in Team", w, r) {
 				return
-			}
-
+			} */
 			profiles, err = c.App.GetUsersInTeamPage(inTeamId, c.Params.Page, c.Params.PerPage, c.IsSystemAdmin())
 		}
 	} else if len(inChannelId) > 0 {
@@ -360,14 +386,18 @@ func getUsers(c *Context, w http.ResponseWriter, r *http.Request) {
 		profiles, err = c.App.GetUsersInChannelPage(inChannelId, c.Params.Page, c.Params.PerPage, c.IsSystemAdmin())
 	} else {
 		// No permission check required
-
 		etag = c.App.GetUsersEtag()
+		/*
 		if c.HandleEtag(etag, "Get Users", w, r) {
 			return
 		}
+		*/
 		profiles, err = c.App.GetUsersPage(c.Params.Page, c.Params.PerPage, c.IsSystemAdmin())
 	}
+	// List all users and remove those who are not in the user's actual team
+	// We don't care about pagination here !!!
 
+	profilesReturned := restrictUserInUserTeams(c, profiles)
 	if err != nil {
 		c.Err = err
 		return
@@ -376,7 +406,7 @@ func getUsers(c *Context, w http.ResponseWriter, r *http.Request) {
 			w.Header().Set(model.HEADER_ETAG_SERVER, etag)
 		}
 		c.App.UpdateLastActivityAtIfNeeded(c.Session)
-		w.Write([]byte(model.UserListToJson(profiles)))
+		w.Write([]byte(model.UserListToJson(profilesReturned)))
 	}
 }
 
@@ -473,7 +503,9 @@ func searchUsers(c *Context, w http.ResponseWriter, r *http.Request) {
 		c.Err = err
 		return
 	} else {
-		w.Write([]byte(model.UserListToJson(profiles)))
+		// Filter users by team mate
+		profilesReturned := restrictUserInUserTeams(c, profiles)
+		w.Write([]byte(model.UserListToJson(profilesReturned)))
 	}
 }
 
